@@ -4,7 +4,7 @@
 
 The latest version of rss-client can be found at
 
-* http://github.com/zh/rssclient/
+* http://github.com/zh/rss-client/
 
 
 == Installation
