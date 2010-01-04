@@ -1,6 +1,67 @@
-= rss-client
+= rss-client:  Fetching and parsing RSS feeds with easy
 
-Description goes here.
+== Download
+
+The latest version of rss-client can be found at
+
+* http://github.com/zh/rssclient/
+
+
+== Installation
+
+=== Normal Installation
+
+You can install rss-client with the following command.
+
+  % rake install
+
+from its distribution directory.
+
+=== GEM Installation
+
+Download and install  rss-client with the following.
+
+   gem install --remote rss-client
+
+
+== Synopsis 
+
+   Fetching RSS feeds.
+
+
+== Examples
+
+   rssclient -q http://example.com/atom.xml
+   rssclient -r -f http://test:test@example.com/atom.xml
+   rssclient --verbose http://example.com/atom.xml
+   rssclient --giveup 20 -f http://example.com/atom.xml
+   rssclient --since 600 http://example.com/atom.xml
+   rssclient -f -p http://aa:bb@localhost:8088 http://example.com/atom.xml
+
+
+== Usage 
+
+   rssclient [options] feed_url
+
+=== Options
+
+  -h, --help          Displays help message
+  -V, --version       Display the version, then exit
+  -q, --quiet         Output as little as possible, overrides verbose
+  -v, --verbose       Verbose output
+  -p, --proxy         Use proxy (format http://user:pass@address:port )
+  -r, --raw           Use raw RSS fetch (no error code processing)
+  -g, --giveup        Giveup on fetching after timeout (seconds)
+  -f, --force         Force fresh feed fetch (no 304 code processing)
+  -s, --since         Only changes from {since} seconds ago
+
+
+== Credits
+
+[<b>Hiroshi Nakamura</b>] For the http-access2 library.
+
+[<b>Todd Werth</b>] For the ruby command-line application skeleton
+
 
 == Note on Patches/Pull Requests
  
@@ -9,10 +70,13 @@ Description goes here.
 * Add tests for it. This is important so I don't break it in a
   future version unintentionally.
 * Commit, do not mess with rakefile, version, or history.
-  (if you want to have your own version, that is fine but
-   bump version in a commit by itself I can ignore when I pull)
+  (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
 * Send me a pull request. Bonus points for topic branches.
 
 == Copyright
 
-Copyright (c) 2010 Stoyan Zhekov. See LICENSE for details.
+Author::   Stoyan Zhekov <zh@zhware.net> 
+Requires:: Ruby 1.8.0 or later
+License::  Copyright (c) 2010 Stoyan Zhekov.
+           Released under an MIT-style license.
+           See LICENSE for details.

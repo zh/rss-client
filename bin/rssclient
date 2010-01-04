@@ -1,0 +1,206 @@
+#!/usr/bin/env ruby
+# == Synopsis 
+#   Fetching RSS feeds.
+#
+# == Examples
+#
+#     rssclient -q http://example.com/atom.xml
+#     rssclient -r -f http://test:test@example.com/atom.xml
+#     rssclient --verbose http://example.com/atom.xml
+#     rssclient --giveup 20 -f http://example.com/atom.xml
+#     rssclient --since 600 http://example.com/atom.xml
+#     rssclient -f -p http://aa:bb@localhost:8088 http://example.com/atom.xml
+#
+# == Usage 
+#   rssclient [options] feed_url
+#
+# == Options
+#   -h, --help          Displays help message
+#   -V, --version       Display the version, then exit
+#   -q, --quiet         Output as little as possible, overrides verbose
+#   -v, --verbose       Verbose output
+#   -p, --proxy         Use proxy (format http://user:pass@address:port )
+#   -r, --raw           Use raw RSS fetch (no error code processing)
+#   -g, --giveup        Giveup on fetching after timeout (seconds)
+#   -f, --force         Force fresh feed fetch (no 304 code processing)
+#   -s, --since         Only changes from {since} seconds ago
+#
+# == Author
+#   Stoyan Zhekov <zh@zhware.net>
+#
+# == Copyright
+#   Copyright (c) 2010 Stoyan Zhekov <zh@zhware.net>. Licensed under the MIT License:
+#   http://www.opensource.org/licenses/mit-license.php
+
+begin
+  require 'rss-client'
+rescue LoadError
+  require 'rubygems'
+  require 'rss-client'
+end
+
+require 'optparse' 
+require 'rdoc/usage'
+
+class App
+  VERSION = '2.0.10'
+
+  attr_reader :options
+
+  def initialize(arguments, stdin)
+    @arguments = arguments
+    @stdin = stdin
+
+    # Set defaults
+    @options = OpenStruct.new
+    @options.verbose = false
+    @options.quiet = false
+    @options.forceUpdate = false
+    @options.raw = false
+    @options.since = Time.new - (10*60) # only changes from 10 min ago
+    @options.giveup = 10                # giveup after 10 sec timeout
+    @options.proxy = nil
+  end
+
+  # Parse options, check arguments, then process the command
+  def run
+
+    if parsed_options? && arguments_valid? 
+
+      puts "Start at #{Time.new.to_s}\n\n" if @options.verbose
+
+      output_options if @options.verbose # [Optional]
+            
+      process_arguments            
+      process_command
+
+      puts "\nFinished at #{Time.new.to_s}" if @options.verbose
+
+    else
+      output_usage
+    end
+
+  end
+
+  protected
+
+    def parsed_options?
+
+      # Specify options
+      opts = OptionParser.new
+      opts.on('-V', '--version')    { output_version ; exit 0 }
+      opts.on('-h', '--help')       { output_help }
+      opts.on('-v', '--verbose')    { @options.verbose = true }  
+      opts.on('-q', '--quiet')      { @options.quiet = true }
+      opts.on('-r', '--raw')        { @options.raw = true }
+      opts.on('-f', '--force')      { @options.forceUpdate = true }
+      opts.on('-p', '--proxy PROXY') { |v| @options.proxy =  v }
+      opts.on('-g', '--giveup SEC') { |v| @options.giveup = v.to_i }
+      opts.on('-s', '--since SEC')  { |v| @options.since =  Time.new - v.to_i }
+
+      opts.parse!(@arguments) rescue return false
+
+      process_options
+      true      
+    end
+
+    # Performs post-parse processing on options
+    def process_options
+      @options.verbose = false if @options.quiet
+      @options.forceUpdate = true unless Time.parse(@options.since.to_s)
+    end
+
+    def output_options
+      puts "Options:\n"
+
+      @options.marshal_dump.each do |name, val|        
+        puts "  #{name} = #{val}"
+      end
+    end
+
+    # True if required arguments were provided
+    def arguments_valid?
+      # TO DO - implement some real logic here
+      true if @arguments.length == 1 
+    end
+
+    # Setup the arguments
+    def process_arguments
+      # TO DO - place in local vars, etc
+    end
+
+    def output_help
+      output_version
+      RDoc::usage() #exits app
+    end
+
+    def output_usage
+      RDoc::usage('usage') # gets usage from comments above
+    end
+
+    def output_version
+      puts "#{File.basename(__FILE__)} version #{VERSION}"
+    end
+
+    def process_command
+      feed = RSSFeed.new
+      if @options.raw
+        rss = feed.fetch_raw(@arguments[0], @options)
+      else	
+        rss = feed.fetch(@arguments[0], @options)
+      end					
+    end
+
+end
+
+# My Modules, Classes, etc
+
+class RSSFeed
+  include RSSClient
+
+  def fetch_raw(uri, options)
+    options.extra = Hash.new
+    options.extra["Connection"] = "close"
+    options.extra["User-Agent"] = "RSSClient/2.0.9"
+    # options.since is Time::
+    if not options.forceUpdate and options.since
+      time = Time.parse(options.since.to_s)
+      options.extra["If-Modified-Since"] = time.httpdate() if time
+    end  
+    begin
+      rss = get_url(uri, options)
+      if rss
+        puts "Status code: #{rss.status}"
+	puts "Headers:"
+	rss.header.dump.each do |h|
+	  puts "- " + h.to_s
+	end  
+      end	
+    rescue RuntimeError => error
+      puts "[E] #{error}"
+    end
+  end
+
+  def fetch(uri, options)
+    # always fetch fresh feed
+    rss = get_feed(uri, options)
+    puts "Status code: #{@rssc_raw.status}" if @rssc_raw
+    if rss && rss != "304"
+      puts "Title: #{rss.channel.title.to_s}"
+      puts "Description: #{rss.channel.description}" if rss.channel.description
+      puts "Link: #{rss.channel.urls.first}" if rss.channel.urls
+      puts "News:"
+      rss.entries.each do |i|
+        puts "- " + i.title.to_s
+      end
+    else
+      puts "[E] #{@rssc_error}" if @rssc_error
+      exit
+    end  
+  end
+end
+
+
+# Create and run the application
+app = App.new(ARGV, STDIN)
+app.run
